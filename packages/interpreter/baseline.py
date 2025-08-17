@@ -90,14 +90,15 @@ def extract_reldate(s: str) -> Optional[str]:
     """Extract relative date tokens."""
     s_norm = norm(s)
     
-    # Map phrases to RELDATE tokens
-    if re.search(r'\blast\s+7\s+days?\b', s_norm):
+    # Map phrases to RELDATE tokens - more flexible matching
+    # Order matters: check more specific patterns first
+    if any(phrase in s_norm for phrase in ['last 7 days', 'past 7 days']):
         return 'last_7d'
-    elif re.search(r'\blast\s+week\b', s_norm):
+    elif any(phrase in s_norm for phrase in ['last week', 'past week']):
         return 'last_week'
-    elif re.search(r'\bthis\s+week\b', s_norm):
+    elif any(phrase in s_norm for phrase in ['this week', 'current week']):
         return 'this_week'
-    elif re.search(r'\bnext\s+week\b', s_norm):
+    elif any(phrase in s_norm for phrase in ['next week', 'upcoming week', 'following week']):
         return 'next_week'
     
     return None
@@ -117,9 +118,9 @@ def extract_status(s: str) -> Optional[str]:
     """Extract status (free/booked)."""
     s_norm = norm(s)
     
-    if 'free' in s_norm:
+    if any(x in s_norm for x in ['free', 'available', 'open']):
         return "status='free'"
-    elif 'booked' in s_norm:
+    elif any(x in s_norm for x in ['booked', 'scheduled', 'occupied', 'taken']):
         return "status='booked'"
     
     return None
@@ -129,24 +130,60 @@ def check_kpi_patterns(s: str) -> Optional[str]:
     """Check for KPI pattern matches."""
     s_norm = norm(s)
     
-    # KPI patterns
-    if 'aged' in s_norm and 'receivables' in s_norm:
+    # KPI patterns - more flexible matching
+    if any(x in s_norm for x in ['aged receivables', 'outstanding', 'money owed', 'debt', 'revenue', 'finance']):
         return 'FIND kpi:aged_receivables'
     
-    if (('no' in s_norm and 'shows' in s_norm) or 'dna' in s_norm) and ('last' in s_norm and '7' in s_norm):
+    if (any(x in s_norm for x in ['no shows', 'no-shows', 'dna', 'did not attend']) and 
+        any(x in s_norm for x in ['last 7 days', 'past week', 'recent'])):
         return 'FIND kpi:no_shows_last_7d'
     
-    if ('free' in s_norm and 'double' in s_norm and 'next' in s_norm and 'week' in s_norm):
+    # Catch standalone "no shows" or "dna" queries
+    if any(x in s_norm for x in ['no shows', 'no-shows', 'dna', 'did not attend']) and not any(x in s_norm for x in ['appointments', 'slots']):
+        return 'FIND kpi:no_shows_last_7d'
+    
+    if (any(x in s_norm for x in ['free double', 'double slots']) and 
+        any(x in s_norm for x in ['next week', 'upcoming'])):
         return 'FIND kpi:free_double_slots_next_7d'
     
     return None
+
+
+def get_helpful_suggestion(nl: str) -> str:
+    """Provide helpful suggestions for unclear or out-of-scope queries."""
+    s_norm = norm(nl)
+    
+    # Check for partial matches that we can suggest clarifications for
+    if any(x in s_norm for x in ['revenue', 'money', 'income', 'profit', 'financial']):
+        return "SUGGEST: Try 'aged receivables by insurer' to see outstanding payments"
+    
+    if any(x in s_norm for x in ['appointment', 'booking', 'schedule']) and not any(x in s_norm for x in ['free', 'booked', 'khan', 'patel', 'ng']):
+        return "SUGGEST: Try 'free appointments' or 'appointments for Dr Khan'"
+    
+    if any(x in s_norm for x in ['doctor', 'practitioner', 'staff']) and 'list' not in s_norm:
+        return "SUGGEST: Try 'show practitioners' or 'appointments for Dr Khan'"
+    
+    if any(x in s_norm for x in ['patient']) and 'list' not in s_norm:
+        return "SUGGEST: Try 'patients list' or 'appointments for [patient name]'"
+    
+    if any(x in s_norm for x in ['time', 'when', 'schedule', 'calendar']):
+        return "SUGGEST: Try 'free appointments Friday after 4pm' or 'next week appointments'"
+    
+    if any(x in s_norm for x in ['report', 'summary', 'stats', 'analytics']):
+        return "SUGGEST: Try 'aged receivables' or 'no-shows last 7 days'"
+    
+    # For clinical/medical terms
+    if any(x in s_norm for x in ['ecg', 'blood pressure', 'prescription', 'diagnosis', 'treatment', 'medication', 'lab', 'test']):
+        return "SUGGEST: I can help with practice management, not clinical data. Try 'appointments' or 'patient list'"
+    
+    return "NO_TOOL"
 
 
 def predict_dsl(nl: str) -> str:
     """
     Convert natural language to DSL using rule-based pattern matching.
     
-    Returns canonical DSL string or "NO_TOOL" if no patterns match.
+    Returns canonical DSL string, helpful suggestion (SUGGEST:...), or "NO_TOOL" if no patterns match.
     """
     if not nl or not nl.strip():
         return "NO_TOOL"
@@ -159,12 +196,16 @@ def predict_dsl(nl: str) -> str:
         return kpi_result
     
     # Check for basic entity patterns early (before building complex queries)
-    if 'patients' in s_norm and not any(x in s_norm for x in ['appointments', 'slots', 'double']):
+    if any(x in s_norm for x in ['patients', 'patient list']) and not any(x in s_norm for x in ['appointments', 'slots', 'double']):
         return "FIND patients LIMIT 50"
-    elif 'invoices' in s_norm and not any(x in s_norm for x in ['appointments', 'slots', 'double']):
+    elif any(x in s_norm for x in ['practitioners', 'doctors', 'practitioner list', 'doctor list', 'staff', 'clinicians']) and not any(x in s_norm for x in ['appointments', 'slots', 'double']):
+        return "FIND practitioners LIMIT 50"
+    elif any(x in s_norm for x in ['invoices', 'bills', 'billing']) and not any(x in s_norm for x in ['appointments', 'slots', 'double']):
         return "FIND invoices LIMIT 50"
-    elif 'payments' in s_norm and not any(x in s_norm for x in ['appointments', 'slots', 'double']):
+    elif any(x in s_norm for x in ['payments', 'payment list', 'receipts']) and not any(x in s_norm for x in ['appointments', 'slots', 'double']):
         return "FIND payments LIMIT 50"
+    elif any(x in s_norm for x in ['revenue', 'receivables', 'outstanding', 'money owed', 'debt', 'finance']) and 'aged' not in s_norm:
+        return "FIND kpi:aged_receivables"
     
     # Otherwise, build appointments query
     filters = []
@@ -211,7 +252,8 @@ def predict_dsl(nl: str) -> str:
         if 'appointments' in s_norm:
             return "FIND appointments LIMIT 50"
         else:
-            return "NO_TOOL"
+            # Try to provide helpful suggestions instead of just "NO_TOOL"
+            return get_helpful_suggestion(nl)
     
     # Build DSL query
     dsl_parts = ["FIND appointments"]

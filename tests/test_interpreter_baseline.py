@@ -149,21 +149,65 @@ class TestBaselineInterpreter:
             result = predict_dsl(nl)
             assert result == expected, f"'{nl}' → '{result}', expected '{expected}'"
     
+    def test_enhanced_entity_queries(self):
+        """Test enhanced entity pattern recognition."""
+        test_cases = [
+            ("show me practitioners", "FIND practitioners LIMIT 50"),
+            ("show doctors", "FIND practitioners LIMIT 50"),
+            ("who are the staff", "FIND practitioners LIMIT 50"),
+            ("practitioner list", "FIND practitioners LIMIT 50"),
+            ("available appointments", "FIND appointments WHERE status='free' LIMIT 50"),
+            ("what appointments are free", "FIND appointments WHERE status='free' LIMIT 50"),
+            ("what is practice revenue", "FIND kpi:aged_receivables"),
+            ("outstanding payments", "FIND kpi:aged_receivables"),
+            ("no shows", "FIND kpi:no_shows_last_7d")
+        ]
+        
+        for nl, expected in test_cases:
+            result = predict_dsl(nl)
+            assert result == expected, f"Enhanced pattern failed: '{nl}' → '{result}', expected '{expected}'"
+    
     def test_out_of_scope(self):
-        """Test out-of-scope queries return NO_TOOL."""
-        out_of_scope = [
-            "show ECG results",
-            "blood pressure readings",
-            "prescribe medication",
-            "schedule surgery",
+        """Test out-of-scope queries return NO_TOOL or helpful suggestions."""
+        no_tool_cases = [
             "random nonsense text",
             "",
             "   "  # whitespace only
         ]
         
-        for nl in out_of_scope:
+        suggestion_cases = [
+            "prescribe medication",
+            "schedule surgery"
+        ]
+        
+        for nl in no_tool_cases:
             result = predict_dsl(nl)
             assert result == "NO_TOOL", f"'{nl}' should return 'NO_TOOL', got '{result}'"
+        
+        for nl in suggestion_cases:
+            result = predict_dsl(nl)
+            assert result.startswith("SUGGEST:"), f"'{nl}' should return suggestion, got '{result}'"
+    
+    def test_helpful_suggestions(self):
+        """Test that vague queries get helpful suggestions."""
+        suggestion_cases = [
+            ("show ECG results", "SUGGEST:"),
+            ("blood pressure readings", "SUGGEST:"),
+            ("financial data", "SUGGEST:"),
+        ]
+        
+        # These should now resolve to actual queries (improved behavior)
+        resolved_cases = [
+            ("show me revenue", "FIND kpi:aged_receivables"),
+        ]
+        
+        for nl, expected_prefix in suggestion_cases:
+            result = predict_dsl(nl)
+            assert result.startswith(expected_prefix), f"'{nl}' should return suggestion, got '{result}'"
+        
+        for nl, expected in resolved_cases:
+            result = predict_dsl(nl)
+            assert result == expected, f"'{nl}' should resolve to '{expected}', got '{result}'"
     
     def test_canonical_filter_ordering(self):
         """Test that filters are always emitted in canonical order."""
@@ -180,14 +224,20 @@ class TestBaselineInterpreter:
             "free appointments",
             "show ECG results"
         ]
-        expected = [
+        expected_prefixes = [
             "FIND kpi:aged_receivables",
             "FIND appointments WHERE status='free' LIMIT 50",
-            "NO_TOOL"
+            "SUGGEST:"  # ECG now returns helpful suggestion
         ]
         
         results = batch_predict(nl_list)
-        assert results == expected, f"Batch prediction failed: {results}"
+        assert len(results) == len(expected_prefixes), f"Wrong number of results: {len(results)}"
+        
+        for i, (result, expected) in enumerate(zip(results, expected_prefixes)):
+            if expected.startswith("SUGGEST:"):
+                assert result.startswith(expected), f"Result {i}: '{result}' should start with '{expected}'"
+            else:
+                assert result == expected, f"Result {i}: '{result}' should equal '{expected}'"
     
     def test_seed_dataset_examples(self):
         """Test exact examples from the seeds dataset."""
