@@ -8,6 +8,7 @@ ENTITY_MAP = {
     "patients":     "SELECT * FROM patients",
     "invoices":     "SELECT * FROM invoices",
     "payments":     "SELECT * FROM payments",
+    "practitioners": "SELECT * FROM practitioners",
 }
 KPI_MAP = {
     "kpi:aged_receivables":        "SELECT * FROM vw_aged_receivables",
