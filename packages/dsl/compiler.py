@@ -1,4 +1,5 @@
 from lark import Lark, Transformer, v_args
+import re
 from .date_resolver import resolve_rel
 GRAMMAR = open(__file__.replace("compiler.py","grammar.lark"), "r").read()
 PARSER = Lark(GRAMMAR, start="query")
@@ -14,8 +15,9 @@ KPI_MAP = {
     "kpi:aged_receivables":        "SELECT * FROM vw_aged_receivables",
     "kpi:no_shows_last_7d":        "SELECT * FROM vw_no_shows_last_7d",
     "kpi:free_double_slots_next_7d": "SELECT * FROM vw_free_double_slots_next_7d",
+    "kpi:revenue_by_practitioner":  "SELECT * FROM vw_revenue_by_practitioner",
 }
-WHITELIST_FIELDS = {"practitioner","day","time","slot","status"}  # MVP
+WHITELIST_FIELDS = {"practitioner","day","time","slot","status","role"}
 
 class AST(Transformer):
     def target(self, children):
@@ -32,6 +34,11 @@ class AST(Transformer):
     def rel(self, children): return ("rel", str(children[0]))
     def filters(self, children): return list(children)
     def fields(self, children): return list(children)
+    def order(self, children):
+        # children[0] is field name, optional children[1] is direction token
+        field = str(children[0]) if children else "1"
+        direction = str(children[1]) if len(children) > 1 else "ASC"
+        return ("ORDER", field, direction)
     def query(self, children): return children
 
 def compile_dsl(dsl: str, conn):
@@ -53,9 +60,10 @@ def compile_dsl(dsl: str, conn):
             if isinstance(p, list) and p and isinstance(p[0], tuple):
                 where = p
             elif isinstance(p, list):
+                # Currently unused (fields/grouping not implemented)
                 group_by = p
-            elif isinstance(p, tuple) and p[0] in {"ASC","DESC"}:
-                order_by = p
+            elif isinstance(p, tuple) and len(p) >= 2 and p[0] == "ORDER":
+                order_by = p  # ("ORDER", field, direction)
             elif isinstance(p, int) or isinstance(p, float):
                 limit = int(p)
 
@@ -98,10 +106,26 @@ def compile_dsl(dsl: str, conn):
                         clauses.append("a.duration_minutes < 30")
                 elif f == "status":
                     clauses.append("a.status " + op + " ?"); params.append(val)
+                elif f == "role":
+                    # Allow role filter on practitioners when joining appointments or querying practitioners
+                    if target == "practitioners":
+                        clauses.append("role " + op + " ?"); params.append(val)
+                    else:
+                        clauses.append("p.role " + op + " ?"); params.append(val)
 
     sql = base
     if clauses:
         sql += " WHERE " + " AND ".join(clauses)
-    sql += " ORDER BY 1"
+    # Apply ordering
+    if order_by:
+        _, field, direction = order_by
+        # Basic safety: ensure field is alphanumeric/underscore
+        if not re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", field):
+            raise ValueError("Invalid ORDER BY field")
+        if direction.upper() not in {"ASC","DESC"}:
+            raise ValueError("Invalid ORDER BY direction")
+        sql += f" ORDER BY {field} {direction.upper()}"
+    else:
+        sql += " ORDER BY 1"
     sql += f" LIMIT {limit}"
     return sql, params

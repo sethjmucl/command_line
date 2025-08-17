@@ -153,7 +153,7 @@ class TestBaselineInterpreter:
         """Test enhanced entity pattern recognition."""
         test_cases = [
             ("show me practitioners", "FIND practitioners LIMIT 50"),
-            ("show doctors", "FIND practitioners LIMIT 50"),
+            ("show doctors", "FIND practitioners WHERE role='GP' LIMIT 50"),
             ("who are the staff", "FIND practitioners LIMIT 50"),
             ("practitioner list", "FIND practitioners LIMIT 50"),
             ("available appointments", "FIND appointments WHERE status='free' LIMIT 50"),

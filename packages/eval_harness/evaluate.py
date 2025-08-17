@@ -12,7 +12,6 @@ Usage:
                                               --pred out/predictions.csv 
                                               --model baseline
 """
-
 import argparse
 import json
 import sqlite3
@@ -29,14 +28,19 @@ sys.path.append(str(Path(__file__).parent.parent.parent))
 from packages.dsl.compiler import compile_dsl
 from packages.interpreter.baseline import predict_dsl
 from scripts.make_dataset import denotation_hash
+from .enhanced_metrics import compute_enhanced_metrics
 
 
 def load_model(model_name: str):
     """Load the specified model for prediction."""
     if model_name == "baseline":
         return predict_dsl
+    elif model_name in ["llm", "hybrid"]:
+        # Import LLM prediction function
+        from packages.interpreter.llm import predict_dsl as predict_dsl_llm
+        return lambda nl: predict_dsl_llm(nl, strategy=model_name)
     else:
-        raise ValueError(f"Unknown model: {model_name}")
+        raise ValueError(f"Unknown model: {model_name}. Supported: baseline, llm, hybrid")
 
 
 def safe_compile_and_execute(dsl: str, conn: sqlite3.Connection) -> Dict[str, Any]:
@@ -199,7 +203,6 @@ def compute_metrics(results: List[Dict[str, Any]]) -> Dict[str, Any]:
         'by_tier': tier_metrics
     }
 
-
 def run_evaluation(db_path: str, test_jsonl_path: str, model_name: str, 
                   output_metrics_path: str, output_predictions_path: str) -> Dict[str, Any]:
     """Run complete evaluation and save results."""
@@ -236,6 +239,10 @@ def run_evaluation(db_path: str, test_jsonl_path: str, model_name: str,
     
     # Compute metrics
     metrics = compute_metrics(results)
+    
+    # Compute enhanced metrics
+    enhanced_metrics = compute_enhanced_metrics(results)
+    metrics.update(enhanced_metrics)
     
     # Save metrics
     output_metrics_path = Path(output_metrics_path)

@@ -15,8 +15,37 @@ from pathlib import Path
 # Add packages to path
 sys.path.append(str(Path(__file__).parent))
 
-from packages.interpreter.baseline import predict_dsl
+from packages.interpreter.baseline import predict_dsl as predict_dsl_baseline  
 from packages.dsl.compiler import compile_dsl
+
+# Import LLM predict function
+try:
+    # Force reload environment variables to get fresh API key
+    import os
+    from dotenv import load_dotenv
+    from pathlib import Path
+    
+    # Clear any cached API key and reload from .env
+    if 'OPENAI_API_KEY' in os.environ:
+        del os.environ['OPENAI_API_KEY']
+    
+    env_path = Path('.env')
+    load_dotenv(env_path, override=True)
+    
+    from packages.interpreter.llm import predict_dsl as predict_dsl_llm
+    LLM_AVAILABLE = True
+    
+    # Verify API key is loaded correctly
+    api_key = os.getenv('OPENAI_API_KEY')
+    if api_key:
+        print(f"✅ API key loaded: ...{api_key[-4:]}")
+    else:
+        print("❌ No API key found")
+        LLM_AVAILABLE = False
+        
+except ImportError as e:
+    print(f"LLM functionality not available: {e}")
+    LLM_AVAILABLE = False
 
 
 # Page config
@@ -42,6 +71,38 @@ st.markdown("*Ask questions in plain English about appointments, patients, pract
 
 # Sidebar with examples and info
 with st.sidebar:
+    st.header("🎛️ Model Settings")
+    
+    # Strategy selector
+    if LLM_AVAILABLE:
+        strategy = st.selectbox(
+            "Prediction Strategy",
+            ["baseline", "llm", "hybrid"],
+            index=2,  # Default to hybrid
+            help="Choose how to interpret your queries:\n"
+                 "• Baseline: Rule-based (fast, free)\n"
+                 "• LLM: AI-powered (smart, uses OpenAI)\n" 
+                 "• Hybrid: Best of both (recommended)"
+        )
+    else:
+        st.warning("⚠️ LLM features unavailable (missing API key or dependencies)")
+        strategy = "baseline"
+        
+    # Model selector for LLM strategies
+    if strategy in ["llm", "hybrid"] and LLM_AVAILABLE:
+        model = st.selectbox(
+            "LLM Model",
+            ["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo"],
+            index=0,  # Default to cost-efficient model
+            help="Choose OpenAI model:\n"
+                 "• gpt-4o-mini: Fast, cheap\n"
+                 "• gpt-4o: Most capable\n"
+                 "• gpt-3.5-turbo: Good balance"
+        )
+    else:
+        model = "gpt-4o-mini"
+    
+    st.divider()
     st.header("📚 Example Queries")
     
     example_queries = [
@@ -105,8 +166,13 @@ if query and (process_clicked or query != st.session_state.get('last_query', '')
     
     try:
         # Step 1: NL → DSL
-        with st.spinner("🧠 Understanding your question..."):
-            dsl = predict_dsl(query)
+        with st.spinner(f"🧠 Understanding your question ({strategy})..."):
+            if strategy == "baseline":
+                dsl = predict_dsl_baseline(query)
+            elif LLM_AVAILABLE and strategy in ["llm", "hybrid"]:
+                dsl = predict_dsl_llm(query, strategy=strategy, model=model)
+            else:
+                dsl = predict_dsl_baseline(query)  # Fallback
             nl_to_dsl_time = time.time() - start_time
         
         # Check for abstention or suggestions
@@ -187,7 +253,10 @@ if query and (process_clicked or query != st.session_state.get('last_query', '')
                 for col in display_df.columns:
                     if 'timestamp' in col.lower() or 'date' in col.lower() or col.endswith('_at'):
                         if display_df[col].dtype == 'object':
-                            display_df[col] = pd.to_datetime(display_df[col], errors='ignore')
+                            try:
+                                display_df[col] = pd.to_datetime(display_df[col])
+                            except (ValueError, TypeError):
+                                pass  # Keep original format if conversion fails
                     
                     # Format currency columns
                     if 'amount' in col.lower() or 'total' in col.lower():

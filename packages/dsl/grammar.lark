@@ -1,7 +1,7 @@
-?query: "FIND" target ("WHERE" filters)? ("GROUP" "BY" fields)? ("ORDER" "BY" field ( "ASC" | "DESC")?)? ("LIMIT" INT)?
+?query: "FIND" target ("WHERE" filters)? (order)? ("LIMIT" INT)?
 target: ENTITY | KPI
 ENTITY: "appointments" | "patients" | "invoices" | "payments" | "practitioners"
-KPI: "kpi:" ("aged_receivables" | "no_shows_last_7d" | "free_double_slots_next_7d")
+KPI: "kpi:" ("aged_receivables" | "no_shows_last_7d" | "free_double_slots_next_7d" | "revenue_by_practitioner")
 filters: filter ("AND" filter)*
 ?filter: field OP value   -> cmp
       | RELDATE           -> rel
@@ -15,6 +15,8 @@ list: "[" [value ("," value)*] "]"
 RELDATE: "last_7d" | "last_30d" | "this_week" | "last_week" | "next_week"
 fields: field ("," field)*
 SINGLE_QUOTED_STRING: "'" ("\\'" | /[^'\\]/)* "'"
+
+order: "ORDER" "BY" field ("ASC" | "DESC")?
 
 %import common.CNAME
 %import common.ESCAPED_STRING

@@ -131,8 +131,13 @@ def check_kpi_patterns(s: str) -> Optional[str]:
     s_norm = norm(s)
     
     # KPI patterns - more flexible matching
-    if any(x in s_norm for x in ['aged receivables', 'outstanding', 'money owed', 'debt', 'revenue', 'finance']):
+    # Revenue-like intents → aged receivables (closest supported KPI)
+    if any(x in s_norm for x in ['aged receivables', 'outstanding invoices', 'money owed', 'debt', 'accounts receivable', 'outstanding payments']):
         return 'FIND kpi:aged_receivables'
+    # Revenue by practitioner intent
+    if any(x in s_norm for x in ['revenue by practitioner', 'revenue per doctor', 'which practitioner has', 'practitioner revenue', 'doctor revenue', 'least revenue', 'most revenue']):
+        # Default ordering must be handled downstream; baseline returns KPI view
+        return 'FIND kpi:revenue_by_practitioner'
     
     if (any(x in s_norm for x in ['no shows', 'no-shows', 'dna', 'did not attend']) and 
         any(x in s_norm for x in ['last 7 days', 'past week', 'recent'])):
@@ -198,13 +203,17 @@ def predict_dsl(nl: str) -> str:
     # Check for basic entity patterns early (before building complex queries)
     if any(x in s_norm for x in ['patients', 'patient list']) and not any(x in s_norm for x in ['appointments', 'slots', 'double']):
         return "FIND patients LIMIT 50"
-    elif any(x in s_norm for x in ['practitioners', 'doctors', 'practitioner list', 'doctor list', 'staff', 'clinicians']) and not any(x in s_norm for x in ['appointments', 'slots', 'double']):
+    elif any(x in s_norm for x in ['practitioners', 'practitioner list', 'doctor list', 'staff', 'clinicians']) and not any(x in s_norm for x in ['appointments', 'slots', 'double']):
         return "FIND practitioners LIMIT 50"
+    elif any(x in s_norm for x in ['doctors', 'gps', 'general practitioners']) and not any(x in s_norm for x in ['appointments', 'slots', 'double']):
+        return "FIND practitioners WHERE role='GP' LIMIT 50"
+    elif any(x in s_norm for x in ['outstanding invoices', 'unpaid invoices', 'open invoices']) and not any(x in s_norm for x in ['appointments', 'slots', 'double']):
+        return "FIND invoices WHERE status='outstanding' LIMIT 50"
     elif any(x in s_norm for x in ['invoices', 'bills', 'billing']) and not any(x in s_norm for x in ['appointments', 'slots', 'double']):
         return "FIND invoices LIMIT 50"
-    elif any(x in s_norm for x in ['payments', 'payment list', 'receipts']) and not any(x in s_norm for x in ['appointments', 'slots', 'double']):
+    elif ('payments' in s_norm and not any(x in s_norm for x in ['appointments', 'slots', 'double'])):
         return "FIND payments LIMIT 50"
-    elif any(x in s_norm for x in ['revenue', 'receivables', 'outstanding', 'money owed', 'debt', 'finance']) and 'aged' not in s_norm:
+    elif any(x in s_norm for x in ['revenue', 'receivables', 'outstanding', 'money owed', 'debt', 'finance', 'outstanding invoices']) and 'aged' not in s_norm:
         return "FIND kpi:aged_receivables"
     
     # Otherwise, build appointments query
@@ -246,6 +255,12 @@ def predict_dsl(nl: str) -> str:
         status = extract_status(nl)
         if status:
             filters.append(status)
+
+    # 6. Doctor-specific queries should exclude nurses when user intent is Dr/GP, but only if no explicit name filter
+    if (any(x in s_norm for x in [' dr ', 'doctor', 'doctors', 'gp', 'gps']) 
+        and (not any(f.startswith("practitioner='") for f in filters))
+        and not any("role='" in f for f in filters)):
+        filters.append("role='GP'")
     
     # If no filters found, check for remaining entity patterns
     if not filters:

@@ -230,6 +230,26 @@ class DatabaseSeeder:
             ) p USING(invoice_id)
             GROUP BY i.insurer
             """,
+            # Revenue by practitioner view
+            """
+            CREATE VIEW vw_revenue_by_practitioner AS
+            SELECT 
+                pr.practitioner_id,
+                pr.first_name,
+                pr.last_name,
+                pr.role,
+                COUNT(i.invoice_id) AS n_invoices,
+                SUM(i.amount) AS gross_revenue,
+                SUM(IFNULL(pay.amount, 0)) AS collected,
+                SUM(i.amount - IFNULL(pay.amount, 0)) AS outstanding
+            FROM practitioners pr
+            LEFT JOIN appointments a ON a.practitioner_id = pr.practitioner_id
+            LEFT JOIN invoices i ON i.appointment_id = a.appt_id
+            LEFT JOIN (
+                SELECT invoice_id, SUM(amount) AS amount FROM payments GROUP BY invoice_id
+            ) pay ON pay.invoice_id = i.invoice_id
+            GROUP BY pr.practitioner_id
+            """,
             
             """
             CREATE VIEW vw_free_double_slots_next_7d AS
