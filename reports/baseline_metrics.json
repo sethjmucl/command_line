@@ -1,0 +1,115 @@
+{
+  "overall": {
+    "total_examples": 15,
+    "attempted": 15,
+    "abstained": 0,
+    "abstention_rate": 0.0,
+    "execution_accuracy": 1.0,
+    "denotation_accuracy": 1.0,
+    "latency_p50_ms": 3.8373470306396484,
+    "latency_p90_ms": 62.670230865478516,
+    "latency_mean_ms": 14.034700393676758,
+    "latency_max_ms": 132.70950317382812
+  },
+  "by_tier": {
+    "T1": {
+      "total": 6,
+      "attempted": 6,
+      "abstained": 0,
+      "execution_accuracy": 1.0,
+      "denotation_accuracy": 1.0
+    },
+    "T2": {
+      "total": 6,
+      "attempted": 6,
+      "abstained": 0,
+      "execution_accuracy": 1.0,
+      "denotation_accuracy": 1.0
+    },
+    "T3": {
+      "total": 3,
+      "attempted": 3,
+      "abstained": 0,
+      "execution_accuracy": 1.0,
+      "denotation_accuracy": 1.0
+    }
+  },
+  "intent_metrics": {
+    "intent_accuracy": 1.0,
+    "filtered_appointments_precision": 1.0,
+    "filtered_appointments_recall": 1.0,
+    "filtered_appointments_f1": 1.0,
+    "entity_list_precision": 1.0,
+    "entity_list_recall": 1.0,
+    "entity_list_f1": 1.0,
+    "kpi_precision": 1.0,
+    "kpi_recall": 1.0,
+    "kpi_f1": 1.0,
+    "complex_combo_precision": 1.0,
+    "complex_combo_recall": 1.0,
+    "complex_combo_f1": 1.0
+  },
+  "slot_metrics": {
+    "day_precision": 1.0,
+    "day_recall": 1.0,
+    "day_f1": 1.0,
+    "time_ge_precision": 1.0,
+    "time_ge_recall": 1.0,
+    "time_ge_f1": 1.0,
+    "kpi_precision": 1.0,
+    "kpi_recall": 1.0,
+    "kpi_f1": 1.0,
+    "slot_precision": 1.0,
+    "slot_recall": 1.0,
+    "slot_f1": 1.0,
+    "practitioner_precision": 1.0,
+    "practitioner_recall": 1.0,
+    "practitioner_f1": 1.0,
+    "reldate_precision": 1.0,
+    "reldate_recall": 1.0,
+    "reldate_f1": 1.0,
+    "status_precision": 1.0,
+    "status_recall": 1.0,
+    "status_f1": 1.0,
+    "domain_precision": 1.0,
+    "domain_recall": 1.0,
+    "domain_f1": 1.0,
+    "macro_precision": 1.0,
+    "macro_recall": 1.0,
+    "macro_f1": 1.0
+  },
+  "coverage_metrics": {
+    "total_examples": 15,
+    "intent_distribution": {
+      "kpi": 0.2,
+      "filtered_appointments": 0.4,
+      "complex_combo": 0.2,
+      "entity_list": 0.2
+    },
+    "slot_usage": {
+      "domain": 1.0,
+      "kpi": 0.2,
+      "reldate": 0.26666666666666666,
+      "status": 0.4,
+      "practitioner": 0.3333333333333333,
+      "day": 0.2,
+      "time_ge": 0.2,
+      "slot": 0.2
+    },
+    "feature_usage": {
+      "reldate_last_7d": 0.06666666666666667,
+      "reldate_this_week": 0.06666666666666667,
+      "reldate_next_week": 0.13333333333333333
+    }
+  },
+  "edge_case_metrics": {
+    "empty_result_rate": 0.06666666666666667,
+    "limit_capped_rate": 0.7333333333333333,
+    "abstention_rate": 0.0
+  },
+  "semantic_accuracy": 1.0,
+  "consistency_dsl_rate": 1.0,
+  "consistency_denotation_rate": 1.0,
+  "neighbor_similarity_jaccard_mean": null,
+  "neighbor_similarity_pair_count": 0
+}

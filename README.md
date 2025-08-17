@@ -1,14 +1,203 @@
-# Command Line (AI-Native, Read-First)
+AI-Powered Health Data Command Palette
 
-> **Project README** - Single source of truth for the Command Line application built for dissertation research.
+Natural language → DSL → SQL over a curated, reproducible SQLite database for UK primary care. Hybrid interpreter (rule-based + OpenAI LLM) with a Streamlit UI and a comprehensive evaluation harness.
 
-## Overview
+Overview
 
-This README serves as the complete specification for an AI-powered natural language command palette designed for primary care operations.
+- Hybrid NL→DSL interpreter: fast rule-based baseline plus optional OpenAI LLM and a hybrid strategy
+- Minimal, safe DSL compiled to parameterized SQL
+- Deterministically seeded SQLite with realistic UK-flavoured data and KPI views
+- Streamlit app for interactive querying
+- Evaluation harness with enhanced metrics (intent accuracy, slot-F1, robustness, coverage, edge cases, latency)
+
+Quick start
+
+1) Install
+
+```bash
+pip install -r requirements.txt
+```
+
+2) Seed the database (deterministic)
+
+```bash
+python scripts/seed_db.py --db sqlite:///data/pms.db --seed 42 --reset
+```
+
+3) (Optional) Configure OpenAI for LLM/hybrid strategies
+
+Create a .env file in the project root:
+
+```bash
+echo OPENAI_API_KEY=sk-... > .env
+```
+
+4) Run the Streamlit UI
+
+```bash
+streamlit run app.py
+```
+
+In the sidebar: pick strategy (baseline, llm, hybrid) and, for LLM, a model (gpt-4o-mini/gpt-4o/gpt-3.5-turbo).
+
+What you can ask
+
+- "Show appointments for Dr Khan"
+- "Free slots next week"
+- "No-shows in the last 7 days"
+- "Outstanding invoices"
+- "Revenue by practitioner" (includes per-practitioner n_invoices, gross/collected/outstanding)
+
+Project structure
+
+```
+command_line/
+  app.py                         # Streamlit UI (strategy selector: baseline/llm/hybrid)
+  data/                          # DB and datasets (gitignored outputs)
+  packages/
+    dsl/
+      grammar.lark               # EBNF grammar
+      compiler.py                # DSL → SQL compiler
+      date_resolver.py           # Relative date helpers (tokens)
+    interpreter/
+      baseline.py                # Rule-based NL→DSL
+      llm.py                     # OpenAI NL→DSL + hybrid strategy
+    eval_harness/
+      evaluate.py                # Evaluation CLI and metrics aggregation
+      enhanced_metrics.py        # Intent, slot-F1, coverage, edge cases
+  scripts/
+    seed_db.py                   # Deterministic schema + seeding + KPI views
+    make_dataset.py              # Gold dataset generation and denotation hashing
+  tests/                         # Pytest suites (DSL, interpreter, seeding, eval)
+  README.md
+  requirements.txt
+```
+
+Database (SQLite)
+
+Core tables
+
+- patients(patient_id, first_name, last_name, dob, phone, email, insurer, created_at)
+- practitioners(practitioner_id, first_name, last_name, role)
+- appointments(appt_id, patient_id NULL, practitioner_id, start_ts, duration_minutes, status IN('free','booked','cancelled','dna'))
+- insurers(name)
+- invoices(invoice_id, patient_id, insurer, appointment_id NULL, amount, issued_at, due_at, status)
+- payments(payment_id, invoice_id, amount, paid_at, method)
+- referrals, documents
+
+Deterministic KPI views
+
+- vw_no_shows_last_7d: recent DNAs
+- vw_aged_receivables: insurer-level totals and outstanding
+- vw_free_double_slots_next_7d: staffing availability
+- vw_revenue_by_practitioner: per-practitioner n_invoices, gross, collected, outstanding
+
+DSL summary
+
+- Targets: ENTITY (appointments, patients, invoices, payments, practitioners) or KPI (aged_receivables, no_shows_last_7d, free_double_slots_next_7d, revenue_by_practitioner)
+- WHERE: whitelisted fields (practitioner, day, time, slot, status, role) and RELDATE tokens (last_7d, last_week, this_week, next_week)
+- ORDER BY: optional field + direction; LIMIT defaults to 50
+
+Examples
+
+```text
+FIND appointments WHERE practitioner='Khan' LIMIT 50
+FIND appointments WHERE next_week AND status='free' LIMIT 50
+FIND kpi:revenue_by_practitioner
+FIND kpi:no_shows_last_7d
+```
+
+Interpreter strategies
+
+- baseline: robust rule-based patterns, suggestions for out-of-scope
+- llm: OpenAI few-shot prompting to produce DSL (valid DSL or NO_TOOL)
+- hybrid: baseline first; if abstains or suggests, fall back to LLM
+
+Evaluation
+
+Datasets
+
+- data/ask_dataset.jsonl: gold questions with DSL, SQL, denotation hashes
+- data/robustness_processed.jsonl: variations (typos, abbrevs, UK phrasing) with hashes
+
+Run
+
+```bash
+# Baseline
+python -m packages.eval_harness.evaluate \
+  --db sqlite:///data/pms.db \
+  --test data/ask_dataset.jsonl \
+  --model baseline \
+  --out out/baseline_metrics.json \
+  --pred out/baseline_predictions.csv
+
+# LLM (requires OPENAI_API_KEY)
+python -m packages.eval_harness.evaluate \
+  --db sqlite:///data/pms.db \
+  --test data/ask_dataset.jsonl \
+  --model llm \
+  --out out/llm_metrics.json \
+  --pred out/llm_predictions.csv
+
+# Hybrid
+python -m packages.eval_harness.evaluate \
+  --db sqlite:///data/pms.db \
+  --test data/ask_dataset.jsonl \
+  --model hybrid \
+  --out out/hybrid_metrics.json \
+  --pred out/hybrid_predictions.csv
+
+# Robustness set (hybrid)
+python -m packages.eval_harness.evaluate \
+  --db sqlite:///data/pms.db \
+  --test data/robustness_processed.jsonl \
+  --model hybrid \
+  --out out/robustness_metrics.json \
+  --pred out/robustness_predictions.csv
+```
+
+Enhanced metrics (automatically computed)
+
+- Intent accuracy (kpi, entity_list, filtered_appointments, complex_combo)
+- Slot-F1 (practitioner, day, time_ge, slot, status, role, domain/kpi)
+- Coverage & feature utilization
+- Edge cases (empty results, LIMIT-capped, abstention rate)
+- Latency (p50/p90/mean/max)
+
+Development & testing
+
+```bash
+pytest
+```
+
+Troubleshooting
+
+- OpenAI 401 invalid_api_key in Streamlit: restart Streamlit after updating .env; the app now reloads .env on start and prints the last 4 chars of the key it picked up.
+- Windows PowerShell multi-line python -c quirks: prefer scripts over long -c commands.
+- Pandas FutureWarning for to_datetime(errors='ignore'): replaced with try/except conversion in the UI.
+
+License
+
+MIT
+
+# AI-Powered Health Data Command Palette
+
+> **Hybrid NL→DSL→SQL System for Primary Care Management**  
+> *Combining rule-based precision with LLM intelligence*
+
+[![Status](https://img.shields.io/badge/Status-Production%20Ready-green)](#current-status)
+[![Evaluation](https://img.shields.io/badge/Baseline%20Accuracy-100%25-brightgreen)](#evaluation-results)
+[![LLM](https://img.shields.io/badge/LLM-OpenAI%20Integrated-blue)](#llm-integration)
+[![Metrics](https://img.shields.io/badge/Enhanced%20Metrics-Implemented-orange)](#enhanced-evaluation)
+
+## 🎯 Project Overview
+
+This project implements a **natural language command line** for primary care operations that translates plain English questions into structured queries. The system combines **rule-based precision** with **LLM intelligence** to provide robust, accurate, and cost-effective natural language data access.
 
 ## 1) Goal
 
-Build a **natural-language command palette** for primary-care operations that can **answer questions** ("Ask") by translating NL → **Query DSL** → **parameterized SQL** over a small, curated SQLite/Postgres schema seeded with realistic fake data. Optional later: enable a tiny **Do-mode** (write) for one or two endpoints.
+Build a **natural-language command palette** for primary-care operations that can **answer questions** ("Ask" Component) by translating NL → **Query DSL** → **parameterised SQL** over a small, curated SQLite/Postgres schema seeded with realistic fake data. 
+For later: enable a tiny **Do-mode** (write) for one or two endpoints.
 
 ### Priorities
 
@@ -20,7 +209,6 @@ Build a **natural-language command palette** for primary-care operations that ca
 
 ### Key Components
 
-- **Personas**: Reception, Clinician, Billing/Admin, Manager
 - **Ask tiers**: T1 lookups; T2 joins/filters; T3 aggregates/time windows
 - **Database**: `patients`, `practitioners`, `appointments`, `insurers`, `invoices`, `payments`, `referrals`, `documents`, `messages` + KPI **views**
 - **Translator**: NL → **Query DSL** → SQL. Primary model: 7-8B instruct (LoRA) for NL→DSL. Baseline: few-shot prompt

@@ -1,0 +1,121 @@
+{
+  "overall": {
+    "total_examples": 58,
+    "attempted": 57,
+    "abstained": 1,
+    "abstention_rate": 0.017241379310344827,
+    "execution_accuracy": 1.0,
+    "denotation_accuracy": 0.8421052631578947,
+    "latency_p50_ms": 2.5091171264648438,
+    "latency_p90_ms": 11.866044998168945,
+    "latency_mean_ms": 4.27380779333282,
+    "latency_max_ms": 16.556739807128906
+  },
+  "by_tier": {
+    "T1": {
+      "total": 20,
+      "attempted": 19,
+      "abstained": 1,
+      "execution_accuracy": 1.0,
+      "denotation_accuracy": 0.9473684210526315
+    },
+    "T2": {
+      "total": 27,
+      "attempted": 27,
+      "abstained": 0,
+      "execution_accuracy": 1.0,
+      "denotation_accuracy": 0.8518518518518519
+    },
+    "T3": {
+      "total": 11,
+      "attempted": 11,
+      "abstained": 0,
+      "execution_accuracy": 1.0,
+      "denotation_accuracy": 0.6363636363636364
+    }
+  },
+  "intent_metrics": {
+    "intent_accuracy": 0.9827586206896551,
+    "filtered_appointments_precision": 1.0,
+    "filtered_appointments_recall": 1.0,
+    "filtered_appointments_f1": 1.0,
+    "kpi_precision": 1.0,
+    "kpi_recall": 1.0,
+    "kpi_f1": 1.0,
+    "complex_combo_precision": 1.0,
+    "complex_combo_recall": 1.0,
+    "complex_combo_f1": 1.0,
+    "abstention_precision": 0.0,
+    "abstention_recall": 0.0,
+    "abstention_f1": 0.0,
+    "entity_list_precision": 1.0,
+    "entity_list_recall": 0.8571428571428571,
+    "entity_list_f1": 0.923076923076923
+  },
+  "slot_metrics": {
+    "domain_precision": 1.0,
+    "domain_recall": 0.9827586206896551,
+    "domain_f1": 0.9913043478260869,
+    "reldate_precision": 1.0,
+    "reldate_recall": 1.0,
+    "reldate_f1": 1.0,
+    "role_precision": 0.0,
+    "role_recall": 0.0,
+    "role_f1": 0.0,
+    "kpi_precision": 1.0,
+    "kpi_recall": 1.0,
+    "kpi_f1": 1.0,
+    "practitioner_precision": 1.0,
+    "practitioner_recall": 0.64,
+    "practitioner_f1": 0.7804878048780487,
+    "status_precision": 1.0,
+    "status_recall": 1.0,
+    "status_f1": 1.0,
+    "day_precision": 1.0,
+    "day_recall": 1.0,
+    "day_f1": 1.0,
+    "slot_precision": 1.0,
+    "slot_recall": 1.0,
+    "slot_f1": 1.0,
+    "time_ge_precision": 1.0,
+    "time_ge_recall": 1.0,
+    "time_ge_f1": 1.0,
+    "macro_precision": 0.8888888888888888,
+    "macro_recall": 0.8469731800766284,
+    "macro_f1": 0.8635324614115706
+  },
+  "coverage_metrics": {
+    "total_examples": 58,
+    "intent_distribution": {
+      "kpi": 0.1896551724137931,
+      "filtered_appointments": 0.4482758620689655,
+      "complex_combo": 0.2413793103448276,
+      "entity_list": 0.1206896551724138
+    },
+    "slot_usage": {
+      "domain": 1.0,
+      "kpi": 0.1896551724137931,
+      "reldate": 0.29310344827586204,
+      "status": 0.43103448275862066,
+      "practitioner": 0.43103448275862066,
+      "day": 0.2413793103448276,
+      "time_ge": 0.2413793103448276,
+      "slot": 0.1896551724137931
+    },
+    "feature_usage": {
+      "reldate_last_7d": 0.06896551724137931,
+      "reldate_this_week": 0.06896551724137931,
+      "reldate_next_week": 0.15517241379310345
+    }
+  },
+  "edge_case_metrics": {
+    "empty_result_rate": 0.07017543859649122,
+    "limit_capped_rate": 0.7719298245614035,
+    "abstention_rate": 0.017241379310344827
+  },
+  "semantic_accuracy": 0.9473684210526315,
+  "consistency_dsl_rate": 1.0,
+  "consistency_denotation_rate": 1.0,
+  "neighbor_similarity_jaccard_mean": 0.9591836734693877,
+  "neighbor_similarity_pair_count": 49
+}
