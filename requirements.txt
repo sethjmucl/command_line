@@ -1,0 +1,4 @@
+faker>=24.0.0
+pytest>=7.0.0
+pandas>=2.0.0
+lark>=1.1.0

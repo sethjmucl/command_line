@@ -1,0 +1,24 @@
+?query: "FIND" target ("WHERE" filters)? ("GROUP" "BY" fields)? ("ORDER" "BY" field ( "ASC" | "DESC")?)? ("LIMIT" INT)?
+target: ENTITY | KPI
+ENTITY: "appointments" | "patients" | "invoices" | "payments"
+KPI: "kpi:" ("aged_receivables" | "no_shows_last_7d" | "free_double_slots_next_7d")
+filters: filter ("AND" filter)*
+?filter: field OP value   -> cmp
+      | RELDATE           -> rel
+field: CNAME
+OP: "=" | "!=" | ">=" | "<=" | "IN" | "LIKE"
+?value: ESCAPED_STRING    -> s
+     | SINGLE_QUOTED_STRING -> s
+     | SIGNED_NUMBER      -> n
+     | list
+list: "[" [value ("," value)*] "]"
+RELDATE: "last_7d" | "last_30d" | "this_week" | "last_week" | "next_week"
+fields: field ("," field)*
+SINGLE_QUOTED_STRING: "'" ("\\'" | /[^'\\]/)* "'"
+
+%import common.CNAME
+%import common.ESCAPED_STRING
+%import common.SIGNED_NUMBER
+%import common.INT
+%import common.WS
+%ignore WS
